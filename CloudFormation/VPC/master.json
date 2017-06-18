@@ -194,6 +194,7 @@
                 }
             }
         },
+
         "DatabaseStack": {
             "Type": "AWS::CloudFormation::Stack",
             "DependsOn": [
@@ -282,6 +283,8 @@
                 }
             }
         },
+
+
         "ApplicationStack": {
             "Type": "AWS::CloudFormation::Stack",
             "DependsOn": [
