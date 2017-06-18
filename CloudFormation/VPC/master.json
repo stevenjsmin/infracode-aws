@@ -1,200 +1,440 @@
 {
-  "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "Master",
-
-   "Parameters": {
-       "KeyName": {
-           "Description": "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
-           "Type": "String",
-           "MinLength": "1",
-           "MaxLength": "64",
-           "AllowedPattern": "[-_ a-zA-Z0-9]*",
-           "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores."
-       },
-       "DNSDomain": {
-           "Description": "DNS domain",
-           "Type": "String",
-           "Default": "aws.uss.technology"
-       },
-       "EnvironmentType": {
-           "Description": "Environment Type",
-           "Type": "String",
-           "Default": "dev",
-           "AllowedValues": ["dev", "training", "preproduction", "production"],
-           "ConstraintDescription": "Staging or Production"
-       },
-       "EnvironmentName": {
-           "Description": "Environment Name",
-           "Type": "String"
-       },
-       "SourceBucket": {
-           "Description": "Bucket Source",
-           "Type": "String",
-           "Default": "source.uss.technology"
-       },
-       "USSOps": {
-           "Description": "CIDR Address of the Uss",
-           "Type": "String",
-           "Default": "110.142.32.188/32"
-       },
-       "ChefServer": {
-           "Description": "Chef Server DNS record",
-           "Type": "String",
-           "Default": "chef.uss.technology"
-       },
-       "DBInstanceIdentifier": {
-           "Description": "DB Instance Identifier",
-           "Type": "String"
-       },
-       "MySQLMasterPassword": {
-           "Description": "MysqlQL Master Password",
-           "Type": "String",
-           "NoEcho": "true"
-       }
-   },
-   "Mappings": {
-       "BaseAMI": {
-           "us-east-1": { "AMI": "ami-1ecae776"}, "us-west-1": {"AMI": "ami-d114f295"},
-            "eu-west-1": { "AMI": "ami-a10897d6"}, "ap-southeast-1": {"AMI": "ami-68d8e93a"},
-            "ap-southeast-2": { "AMI": "ami-fd9cecc7"}
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Master",
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "64",
+            "AllowedPattern": "[-_ a-zA-Z0-9]*",
+            "ConstraintDescription": "can contain only alphanumeric characters, spaces, dashes and underscores."
+        },
+        "DNSDomain": {
+            "Description": "DNS domain",
+            "Type": "String",
+            "Default": "aws.uss.technology"
+        },
+        "EnvironmentType": {
+            "Description": "Environment Type",
+            "Type": "String",
+            "Default": "dev",
+            "AllowedValues": [
+                "dev",
+                "training",
+                "preproduction",
+                "production"
+            ],
+            "ConstraintDescription": "Staging or Production"
+        },
+        "EnvironmentName": {
+            "Description": "Environment Name",
+            "Type": "String"
+        },
+        "SourceBucket": {
+            "Description": "Bucket Source",
+            "Type": "String",
+            "Default": "source.uss.technology"
+        },
+        "USSOps": {
+            "Description": "CIDR Address of the Uss",
+            "Type": "String",
+            "Default": "110.142.32.188/32"
+        },
+        "ChefServer": {
+            "Description": "Chef Server DNS record",
+            "Type": "String",
+            "Default": "chef.uss.technology"
+        },
+        "DBInstanceIdentifier": {
+            "Description": "DB Instance Identifier",
+            "Type": "String"
+        },
+        "MySQLMasterPassword": {
+            "Description": "MysqlQL Master Password",
+            "Type": "String",
+            "NoEcho": "true"
+        }
+    },
+    "Mappings": {
+        "BaseAMI": {
+            "us-east-1": {
+                "AMI": "ami-1ecae776"
+            },
+            "us-west-1": {
+                "AMI": "ami-d114f295"
+            },
+            "eu-west-1": {
+                "AMI": "ami-a10897d6"
+            },
+            "ap-southeast-1": {
+                "AMI": "ami-68d8e93a"
+            },
+            "ap-southeast-2": {
+                "AMI": "ami-fd9cecc7"
+            }
         },
         "InstanceType": {
             "dev": {
-            "nat": "t2.medium",
-            "app": "m3.large",
-            "database": "db.m3.xlarge"
-        },
-        "training": {
-            "nat": "t2.medium",
-            "app": "m3.large",
-            "database": "db.m3.xlarge"
-        },
-        "preproduction": {
-            "nat": "t2.medium",
-            "app": "m3.large",
-            "database": "db.m3.xlarge"
-       },
-       "production": {
-            "nat": "t2.medium",
-            "app": "m3.large",
-            "database": "db.m3.xlarge"
-       }
-     },
-     "Network": {
-         "dev": {
-             "prefix": "10.210",
-             "stackmask": "16",
-             "subnetmask": "24"
-         },
-        "training": {
-            "prefix": "10.211",
-            "stackmask": "16",
-            "subnetmask": "24"
-        },
-        "preprodution": {
-            "prefix": "10.212",
-            "stackmask": "16",
-            "subnetmask": "24"
-        },
-        "production": {
-            "prefix": "10.213",
-            "stackmask": "16",
-            "subnetmask": "24"
-        }
-     }
-   },
-
-   "Resources" : {
-        "VPCStack" : {
-            "Type" : "AWS::CloudFormation::Stack",
-            "Properties" : {
-                "TemplateURL" : { "Fn::Join" : [ "", [ "https://s3-",{"Ref" : "AWS::Region"},".amazonaws.com/", { "Ref" : "SourceBucket" }, "/cloudformation/vpc.json" ]] } ,
-                "TimeoutInMinutes" : "5",
-                "Parameters" : {
-                    "NetworkPrefix" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "prefix" ] },
-                    "StackMask" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "stackmask" ] },
-                    "SubnetMask" : { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "subnetmask" ] },
-                    "SourceBucket" : { "Ref" : "SourceBucket" },
-                    "USSOps" : { "Ref" : "USSOps" },
-                    "EnvironmentType" : {"Ref" : "EnvironmentType"},
-                    "EnvironmentName" : {"Ref" : "EnvironmentName"},
-                    "DNSDomain" : { "Ref" : "DNSDomain" },
-                    "KeyName" : { "Ref" : "KeyName" },
-                    "ChefServer" : { "Ref" : "ChefServer" },
-                    "BaseAMI" : { "Fn::FindInMap" : [ "BaseAMI", {"Ref" : "AWS::Region"}, "AMI" ] },
-                    "ToolsVPC" : "tmp",
-                    "InstanceType" : { "Fn::FindInMap" : [ "InstanceType", {"Ref" : "EnvironmentType"}, "nat" ] }
-                }
+                "nat": "t2.medium",
+                "app": "m3.large",
+                "database": "db.m3.xlarge"
+            },
+            "training": {
+                "nat": "t2.medium",
+                "app": "m3.large",
+                "database": "db.m3.xlarge"
+            },
+            "preproduction": {
+                "nat": "t2.medium",
+                "app": "m3.large",
+                "database": "db.m3.xlarge"
+            },
+            "production": {
+                "nat": "t2.medium",
+                "app": "m3.large",
+                "database": "db.m3.xlarge"
             }
         },
-        "DatabaseStack" : {
-            "Type" : "AWS::CloudFormation::Stack",
-            "DependsOn" : ["VPCStack"],
-            "Properties" : {
-                "TemplateURL" : { "Fn::Join" : [ "", [ "https://s3-",{"Ref" : "AWS::Region"},".amazonaws.com/", { "Ref" : "SourceBucket" }, "/cloudformation/database.json" ]] } ,
-                "TimeoutInMinutes" : "20",
-                "Parameters" : {
-                    "NetworkPrefix" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "prefix" ] },
-                    "StackMask" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "stackmask" ] },
-                    "SubnetMask" : { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "subnetmask" ] },
-                    "EnvironmentType" : {"Ref" : "EnvironmentType"},
-                    "EnvironmentName" : {"Ref" : "EnvironmentName"},
-                    "DNSDomain" : { "Ref" : "DNSDomain" },
-                    "KeyName" : { "Ref" : "KeyName" },
-                    "RouteTablePrivateA": {"Fn::GetAtt": ["VPCStack", "Outputs.RouteTablePrivateA"]},
-                    "RouteTablePrivateB": {"Fn::GetAtt": ["VPCStack", "Outputs.RouteTablePrivateB"]},
-                    "DBInstanceIdentifier" : {"Ref" : "DBInstanceIdentifier"},
-                    "MySQLMasterPassword" : {"Ref" : "MySQLMasterPassword"},
-                    "InstanceType" : { "Fn::FindInMap" : [ "InstanceType", {"Ref" : "EnvironmentType"}, "database" ] },
-                    "VPC" : {"Fn::GetAtt": ["VPCStack", "Outputs.VPCId"]}
-                }
-            }
-        },
-        "ApplicationStack" : {
-            "Type" : "AWS::CloudFormation::Stack",
-            "DependsOn" : ["VPCStack", "DatabaseStack"],
-            "Properties" : {
-                "TemplateURL" : { "Fn::Join" : [ "", [ "https://s3-",{"Ref" : "AWS::Region"},".amazonaws.com/", { "Ref" : "SourceBucket" }, "/cloudformation/application.json" ]] } ,
-                "TimeoutInMinutes" : "20",
-                "Parameters" : {
-                    "NetworkPrefix" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "prefix" ] },
-                    "StackMask" :  { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "stackmask" ] },
-                    "SubnetMask" : { "Fn::FindInMap" : [ "Network", {"Ref" : "EnvironmentType"}, "subnetmask" ] },
-                    "SourceBucket" : { "Ref" : "SourceBucket" },
-                    "EnvironmentType" : {"Ref" : "EnvironmentType"},
-                    "EnvironmentName" : {"Ref" : "EnvironmentName"},
-                    "DNSDomain" : { "Ref" : "DNSDomain" },
-                    "KeyName" : { "Ref" : "KeyName" },
-                    "ChefServer" : { "Ref" : "ChefServer" },
-                    "BaseAMI" : { "Fn::FindInMap" : [ "BaseAMI", {"Ref" : "AWS::Region"}, "AMI" ] },
-                    "RouteTablePrivateA": {"Fn::GetAtt": ["VPCStack", "Outputs.RouteTablePrivateA"]},
-                    "RouteTablePrivateB": {"Fn::GetAtt": ["VPCStack", "Outputs.RouteTablePrivateB"]},
-                    "InstanceType" : { "Fn::FindInMap" : [ "InstanceType", {"Ref" : "EnvironmentType"}, "app" ] },
-                    "SecurityGroupBackplane" : {"Fn::GetAtt": ["VPCStack", "Outputs.SecurityGroupBackplane"]},
-                    "SubnetPublicA" : {"Fn::GetAtt": ["VPCStack", "Outputs.SubnetPublicA"]},
-                    "SubnetPublicB" : {"Fn::GetAtt": ["VPCStack", "Outputs.SubnetPublicA"]},
-                    "VPC" : {"Fn::GetAtt": ["VPCStack", "Outputs.VPCId"]}
-                }
+        "Network": {
+            "dev": {
+                "prefix": "10.210",
+                "stackmask": "16",
+                "subnetmask": "24"
+            },
+            "training": {
+                "prefix": "10.211",
+                "stackmask": "16",
+                "subnetmask": "24"
+            },
+            "preprodution": {
+                "prefix": "10.212",
+                "stackmask": "16",
+                "subnetmask": "24"
+            },
+            "production": {
+                "prefix": "10.213",
+                "stackmask": "16",
+                "subnetmask": "24"
             }
         }
-   },
-
-   "Outputs" : {
-       "VPC" : {
-           "Description" : "VPC ID of the newly created VPC",
-           "Value" :  { "Fn::GetAtt" : [ "VPCStack" , "Outputs.VPCId" ] }
-       },
-       "SubnetPublicA" : {
-           "Description" : "SubnetId of the public subnet in AZa",
-           "Value" :  { "Fn::GetAtt" : [ "VPCStack" , "Outputs.SubnetPublicA" ] }
-       },
-       "SubnetPublicB" : {
-           "Description" : "SubnetId of the public subnet in AZb",
-           "Value" :  { "Fn::GetAtt" : [ "VPCStack" , "Outputs.SubnetPublicB" ] }
-       },
-       "RouteTablePublic" : {
-           "Description" : "Route Table Public",
-           "Value" :  { "Fn::GetAtt" : [ "VPCStack" , "Outputs.RouteTablePublic" ] }
-       }
-   }
+    },
+    "Resources": {
+        "VPCStack": {
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Join": [
+                        "", [ "https://s3-", { "Ref": "AWS::Region"}, ".amazonaws.com/", {"Ref": "SourceBucket"}, "/cloudformation/vpc.json" ]
+                    ]
+                },
+                "TimeoutInMinutes": "5",
+                "Parameters": {
+                    "NetworkPrefix": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "prefix"
+                        ]
+                    },
+                    "StackMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "stackmask"
+                        ]
+                    },
+                    "SubnetMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "subnetmask"
+                        ]
+                    },
+                    "SourceBucket": {
+                        "Ref": "SourceBucket"
+                    },
+                    "USSOps": {
+                        "Ref": "USSOps"
+                    },
+                    "EnvironmentType": {
+                        "Ref": "EnvironmentType"
+                    },
+                    "EnvironmentName": {
+                        "Ref": "EnvironmentName"
+                    },
+                    "DNSDomain": {
+                        "Ref": "DNSDomain"
+                    },
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    },
+                    "ChefServer": {
+                        "Ref": "ChefServer"
+                    },
+                    "BaseAMI": {
+                        "Fn::FindInMap": ["BaseAMI", {"Ref": "AWS::Region"}, "AMI" ]
+                    },
+                    "ToolsVPC": "tmp",
+                    "InstanceType": {
+                        "Fn::FindInMap": [
+                            "InstanceType",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "nat"
+                        ]
+                    }
+                }
+            }
+        },
+        "DatabaseStack": {
+            "Type": "AWS::CloudFormation::Stack",
+            "DependsOn": [
+                "VPCStack"
+            ],
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Join": [
+                        "",[ "https://s3-",{ "Ref": "AWS::Region" },".amazonaws.com/", {"Ref": "SourceBucket" }, "/cloudformation/database.json" ]
+                    ]
+                },
+                "TimeoutInMinutes": "20",
+                "Parameters": {
+                    "NetworkPrefix": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "prefix"
+                        ]
+                    },
+                    "StackMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "stackmask"
+                        ]
+                    },
+                    "SubnetMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "subnetmask"
+                        ]
+                    },
+                    "EnvironmentType": {
+                        "Ref": "EnvironmentType"
+                    },
+                    "EnvironmentName": {
+                        "Ref": "EnvironmentName"
+                    },
+                    "DNSDomain": {
+                        "Ref": "DNSDomain"
+                    },
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    },
+                    "RouteTablePrivateA": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.RouteTablePrivateA"
+                        ]
+                    },
+                    "RouteTablePrivateB": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.RouteTablePrivateB"
+                        ]
+                    },
+                    "DBInstanceIdentifier": {
+                        "Ref": "DBInstanceIdentifier"
+                    },
+                    "MySQLMasterPassword": {
+                        "Ref": "MySQLMasterPassword"
+                    },
+                    "InstanceType": {
+                        "Fn::FindInMap": [
+                            "InstanceType",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "database"
+                        ]
+                    },
+                    "VPC": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.VPCId"
+                        ]
+                    }
+                }
+            }
+        },
+        "ApplicationStack": {
+            "Type": "AWS::CloudFormation::Stack",
+            "DependsOn": [
+                "VPCStack",
+                "DatabaseStack"
+            ],
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Join": [
+                        "",["https://s3-",{"Ref": "AWS::Region"},".amazonaws.com/",{ "Ref": "SourceBucket"},"/cloudformation/application.json" ]
+                    ]
+                },
+                "TimeoutInMinutes": "20",
+                "Parameters": {
+                    "NetworkPrefix": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "prefix"
+                        ]
+                    },
+                    "StackMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "stackmask"
+                        ]
+                    },
+                    "SubnetMask": {
+                        "Fn::FindInMap": [
+                            "Network",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "subnetmask"
+                        ]
+                    },
+                    "SourceBucket": {
+                        "Ref": "SourceBucket"
+                    },
+                    "EnvironmentType": {
+                        "Ref": "EnvironmentType"
+                    },
+                    "EnvironmentName": {
+                        "Ref": "EnvironmentName"
+                    },
+                    "DNSDomain": {
+                        "Ref": "DNSDomain"
+                    },
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    },
+                    "ChefServer": {
+                        "Ref": "ChefServer"
+                    },
+                    "BaseAMI": {
+                        "Fn::FindInMap": [
+                            "BaseAMI",
+                            {
+                                "Ref": "AWS::Region"
+                            },
+                            "AMI"
+                        ]
+                    },
+                    "RouteTablePrivateA": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.RouteTablePrivateA"
+                        ]
+                    },
+                    "RouteTablePrivateB": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.RouteTablePrivateB"
+                        ]
+                    },
+                    "InstanceType": {
+                        "Fn::FindInMap": [
+                            "InstanceType",
+                            {
+                                "Ref": "EnvironmentType"
+                            },
+                            "app"
+                        ]
+                    },
+                    "SecurityGroupBackplane": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.SecurityGroupBackplane"
+                        ]
+                    },
+                    "SubnetPublicA": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.SubnetPublicA"
+                        ]
+                    },
+                    "SubnetPublicB": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.SubnetPublicA"
+                        ]
+                    },
+                    "VPC": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.VPCId"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "VPC": {
+            "Description": "VPC ID of the newly created VPC",
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.VPCId"
+                ]
+            }
+        },
+        "SubnetPublicA": {
+            "Description": "SubnetId of the public subnet in AZa",
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.SubnetPublicA"
+                ]
+            }
+        },
+        "SubnetPublicB": {
+            "Description": "SubnetId of the public subnet in AZb",
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.SubnetPublicB"
+                ]
+            }
+        },
+        "RouteTablePublic": {
+            "Description": "Route Table Public",
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.RouteTablePublic"
+                ]
+            }
+        }
+    }
 }

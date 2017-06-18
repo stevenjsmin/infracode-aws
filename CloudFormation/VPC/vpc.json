@@ -1,63 +1,62 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
     "Description" : "VPC",
-
-    "Parameters" : {
-        "KeyName" : {
-            "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
-            "Type" : "String"
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
+            "Type": "String"
         },
-        "DNSDomain" : {
-            "Description" : "DNS domain",
-            "Type" : "String"
+        "DNSDomain": {
+            "Description": "DNS domain",
+            "Type": "String"
         },
-        "EnvironmentType" : {
-            "Description" : "Chef environment type",
-            "Type" : "String"
+        "EnvironmentType": {
+            "Description": "Chef environment type",
+            "Type": "String"
         },
-        "EnvironmentName" : {
-            "Description" : "DNS subdomain",
-            "Type" : "String"
+        "EnvironmentName": {
+            "Description": "DNS subdomain",
+            "Type": "String"
         },
-        "USSOps" : {
-            "Description" : "CIDR Address of USS",
-            "Type" : "String"
+        "USSOps": {
+            "Description": "CIDR Address of USS",
+            "Type": "String"
         },
-        "NetworkPrefix" : {
-            "Description" : "CIDR Prefix for the VPC [x.x]",
-            "Type" : "String"
+        "NetworkPrefix": {
+            "Description": "CIDR Prefix for the VPC [x.x]",
+            "Type": "String"
         },
-        "StackMask" : {
-            "Description" : "CIDR Mask for the VPC [x.x]",
-            "Type" : "String"
+        "StackMask": {
+            "Description": "CIDR Mask for the VPC [x.x]",
+            "Type": "String"
         },
-        "SubnetMask" : {
-            "Description" : "VPC Subnet Mask",
-            "Type" : "String"
+        "SubnetMask": {
+            "Description": "VPC Subnet Mask",
+            "Type": "String"
         },
-        "ChefServer" : {
-            "Description" : "Chef Server DNS Record",
-            "Type" : "String"
+        "ChefServer": {
+            "Description": "Chef Server DNS Record",
+            "Type": "String"
         },
-        "BaseAMI" : {
-            "Description" : "Base AMI",
-            "Type" : "String"
+        "BaseAMI": {
+            "Description": "Base AMI",
+            "Type": "String"
         },
-        "ToolsVPC" : {
-            "Description" : "Tools VPC For peering",
-            "Type" : "String"
+        "ToolsVPC": {
+            "Description": "Tools VPC For peering",
+            "Type": "String"
         },
-        "BaseAMI" : {
-            "Description" : "Base AMI",
-            "Type" : "String"
+        "BaseAMI": {
+            "Description": "Base AMI",
+            "Type": "String"
         },
-        "SourceBucket" : {
-            "Description" : "Source Bucket",
-            "Type" : "String"
+        "SourceBucket": {
+            "Description": "Source Bucket",
+            "Type": "String"
         },
-        "InstanceType" : {
-            "Description" : "Instance Type",
-            "Type" : "String"
+        "InstanceType": {
+            "Description": "Instance Type",
+            "Type": "String"
         }
     },
 
