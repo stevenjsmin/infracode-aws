@@ -1,0 +1,189 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Database",
+  "Parameters": {
+      "KeyName": {
+        "Description": "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
+        "Type": "String"
+      },
+      "DNSDomain": {
+        "Description": "DNS domain",
+        "Type": "String"
+      },
+      "EnvironmentType": {
+        "Description": "Chef environment type",
+        "Type": "String"
+      },
+      "EnvironmentName": {
+        "Description": "Environment Name",
+        "Type": "String"
+      },
+      "NetworkPrefix": {
+        "Description": "CIDR Prefix for the VPC [x.x]",
+        "Type": "String"
+      },
+      "StackMask": {
+        "Description": "CIDR Mask for the VPC [x.x]",
+        "Type": "String"
+      },
+      "SubnetMask": {
+        "Description": "VPC Subnet Mask",
+        "Type": "String"
+      },
+      "VPC": {
+        "Description": "VPC",
+        "Type": "String"
+      },
+      "RouteTablePrivateA": {
+        "Description": "RouteTablePrivateB",
+        "Type": "String"
+      },
+      "RouteTablePrivateB": {
+        "Description": "RouteTablePrivateB",
+        "Type": "String"
+      },
+      "InstanceType": {
+        "Description": "Worker Cache Instance Type",
+        "Type": "String"
+      },
+      "DBInstanceIdentifier" : {
+        "Description" : "DBInstanceIdentifier",
+        "Type" : "String"
+      },
+      "MySQLMasterPassword" : {
+        "Description" : "MySQLMasterPassword",
+        "Type" : "String"
+      }
+  },
+
+  "Conditions": {
+    "IsProduction": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "production"]
+    },
+    "IsPreProduction": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "preproduction"]
+    },
+    "IsTraining": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "training"]
+    },
+    "IsDest": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "dev"]
+    }
+  },
+
+  "Resources": {
+    "SubnetPrivateA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "CidrBlock": {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".4.0/", {"Ref": "SubnetMask"}]]},
+        "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
+        "Tags": [
+          {"Key": "Application", "Value": {"Ref": "AWS::StackName"}},
+          {"Key": "Network", "Value": "SubnetPrivateA"},
+          {"Key": "Name", "Value" : "database-subnet-a"}
+        ]
+      }
+    },
+    "SubnetPrivateB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "CidrBlock": {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".5.0/", {"Ref": "SubnetMask"}]]},
+        "AvailabilityZone": {"Fn::Select": ["1", {"Fn::GetAZs": ""}]},
+        "Tags": [
+          {"Key": "Application", "Value": {"Ref": "AWS::StackName"}},
+          {"Key": "Network", "Value": "SubnetPrivateB"},
+          {"Key": "Name", "Value" : "database-subnet-b"}
+        ]
+      }
+    },
+    "SubnetRouteTableAssociationPrivateA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "SubnetPrivateA"},
+        "RouteTableId": {"Ref": "RouteTablePrivateA"}
+      }
+    },
+    "SubnetRouteTableAssociationPrivateB": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "SubnetPrivateB"},
+        "RouteTableId": {"Ref": "RouteTablePrivateB"}
+      }
+    },
+    "SecurityGroupInternalDatabase": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Access Databases internally",
+        "VpcId": {"Ref": "VPC"},
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": "3306", "ToPort": "3306", "CidrIp":  {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".0.0/", {"Ref": "SubnetMask"}]]}},
+          {"IpProtocol": "tcp", "FromPort": "3306", "ToPort": "3306", "CidrIp":  {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".2.0/", {"Ref": "SubnetMask"}]]}}
+        ],
+        "SecurityGroupEgress": [
+        ]
+      }
+    },
+    "DBSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Subnets available for the RDS DB Instance",
+        "SubnetIds": [{"Ref": "SubnetPrivateA"}, {"Ref": "SubnetPrivateB"}]
+      }
+    },
+    "DBParameters": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "RDS DB Parameters",
+        "Family": "mysql5.6",
+        "Parameters": {
+        },
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Join": ["", [{"Ref": "EnvironmentName"}, ".", {"Ref": "EnvironmentType"}, "-DB"]]}}
+        ]
+      }
+    },
+    "DBInstance": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "LicenseModel": "general-public-license",
+        "AllocatedStorage": "10",
+        "StorageType": "gp2",
+        "DBInstanceClass": {"Ref": "InstanceType"},
+        "Engine": "MySQL",
+        "EngineVersion": "5.6.22",
+        "MasterUsername": "ussadmin",
+        "MasterUserPassword": "tnwl2701",
+        "DBInstanceIdentifier": {"Ref": "DBInstanceIdentifier"},
+        "DBParameterGroupName": {"Ref": "DBParameters"},
+        "DBSubnetGroupName": {"Ref": "DBSubnetGroup"},
+        "Port": "3306",
+        "MultiAZ": {
+          "Fn::If": [
+            "IsProduction", true, false
+          ]
+        },
+        "VPCSecurityGroups": [{"Ref": "SecurityGroupInternalDatabase"}],
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Join": ["", [{"Ref": "EnvironmentName"}, "-rds"]]}},
+          {"Key": "FQDN", "Value": {"Fn::Join": ["", ["mysql.int.", {"Ref": "EnvironmentName"}, {"Ref": "DNSDomain"}, "."]]}}
+        ]
+      }
+    },
+    "DbIntHostRecord": {
+      "Type": "AWS::Route53::RecordSet",
+      "DependsOn": "DBInstance",
+      "Properties": {
+        "HostedZoneName": {"Fn::Join": ["", [{"Ref": "EnvironmentName"}, ".", {"Ref": "DNSDomain"}, "."]]},
+        "Comment": "DNS name for my instance.",
+        "Name": {"Fn::Join": ["", ["mysql.int.", {"Ref": "EnvironmentName"}, ".", {"Ref": "DNSDomain"}, "."]]},
+        "Type": "CNAME",
+        "TTL": "60",
+        "ResourceRecords": [{"Fn::GetAtt": ["DBInstance", "Endpoint.Address"]}]
+      }
+    }
+  },
+  "Outputs": {
+  }
+}

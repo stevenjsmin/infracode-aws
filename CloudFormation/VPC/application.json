@@ -1,0 +1,293 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+      "Description": "Application",
+        "Parameters": {
+    "KeyName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the bastion host",
+      "Type": "String"
+    },
+    "DNSDomain": {
+      "Description": "DNS domain",
+      "Type": "String"
+    },
+    "EnvironmentType": {
+      "Description": "Chef environment type",
+      "Type": "String"
+    },
+    "EnvironmentName": {
+      "Description": "Environment Name",
+      "Type": "String"
+    },
+    "NetworkPrefix": {
+      "Description": "CIDR Prefix for the VPC [x.x]",
+      "Type": "String"
+    },
+    "StackMask": {
+      "Description": "CIDR Mask for the VPC [x.x]",
+      "Type": "String"
+    },
+    "SubnetMask": {
+      "Description": "VPC Subnet Mask",
+      "Type": "String"
+    },
+    "VPC": {
+      "Description": "VPC",
+      "Type": "String"
+    },
+    "ChefServer": {
+      "Description": "Chef Server DNS Record",
+      "Type": "String"
+    },
+    "RouteTablePrivateA": {
+      "Description": "RouteTablePrivateB",
+      "Type": "String"
+    },
+    "RouteTablePrivateB": {
+      "Description": "RouteTablePrivateB",
+      "Type": "String"
+    },
+    "InstanceType": {
+      "Description": "Instance Type",
+      "Type": "String"
+    },
+    "SecurityGroupBackplane" : {
+      "Description" : "Backplane security access",
+      "Type" : "String"
+    },
+    "SubnetPublicA" : {
+      "Description" : "Subnet Public A",
+      "Type" : "String"
+    },
+    "SubnetPublicB" : {
+      "Description" : "Subnet Public B",
+      "Type" : "String"
+    },
+    "BaseAMI" : {
+      "Description" : "Base AMI",
+      "Type" : "String"
+    },
+    "SourceBucket" : {
+      "Description" : "Source Bucket",
+      "Type" : "String"
+    }
+  },
+
+  "Conditions": {
+    "IsProduction": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "production"]
+    },
+    "IsPreProduction": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "preproduction"]
+    },
+    "IsTraining": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "training"]
+    },
+    "IsDev": {
+      "Fn::Equals": [{"Ref": "EnvironmentType"}, "dev"]
+    }
+  },
+
+  "Resources": {
+    "SubnetPrivateA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "CidrBlock": {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".2.0/", {"Ref": "SubnetMask"}]]},
+        "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
+        "Tags": [
+          {"Key": "Application", "Value": {"Ref": "AWS::StackName"}},
+          {"Key": "Network", "Value": "SubnetPrivateA"},
+          {"Key": "Name", "Value" : "app-subnet-a"}
+        ]
+      }
+    },
+    "SubnetPrivateB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "CidrBlock": {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".3.0/", {"Ref": "SubnetMask"}]]},
+        "AvailabilityZone": {"Fn::Select": ["1", {"Fn::GetAZs": ""}]},
+        "Tags": [
+          {"Key": "Application", "Value": {"Ref": "AWS::StackName"}},
+          {"Key": "Network", "Value": "SubnetPrivateB"},
+          {"Key": "Name", "Value" : "app-subnet-b"}
+        ]
+      }
+    },
+    "SubnetRouteTableAssociationPrivateA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "SubnetPrivateA"},
+        "RouteTableId": {"Ref": "RouteTablePrivateA"}
+      }
+    },
+    "SubnetRouteTableAssociationPrivateB": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "SubnetPrivateB"},
+        "RouteTableId": {"Ref": "RouteTablePrivateB"}
+      }
+    },
+    "SecurityGroupInternalApp": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Access App internally",
+        "VpcId": {"Ref": "VPC"},
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": "8080", "ToPort": "8080", "CidrIp":  {"Fn::Join": ["", [{"Ref": "NetworkPrefix"}, ".0.0/", {"Ref": "StackMask"}]]}}
+        ],
+        "SecurityGroupEgress": [
+        ]
+      }
+    },
+    "SecurityGroupExternalWeb": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Access Web externally",
+        "VpcId": {"Ref": "VPC"},
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp":  "0.0.0.0/0"},
+          {"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp":  "0.0.0.0/0"}
+        ],
+        "SecurityGroupEgress": [
+        ]
+      }
+    },
+    "Role":{
+      "Type":"AWS::IAM::Role",
+      "Properties":{
+        "AssumeRolePolicyDocument":{
+          "Statement":[
+            {
+              "Effect":"Allow",
+              "Principal":{ "Service":[ "ec2.amazonaws.com" ] },
+              "Action":[ "sts:AssumeRole" ]
+            }
+          ]
+        },
+        "Path":"/",
+        "Policies":[
+          {
+            "PolicyName":"read-only",
+            "PolicyDocument":{ "Statement":[ { "Effect":"Allow", "Action": ["autoscaling:Describe*","ec2:Describe*","s3:*"], "Resource":"*" } ] }
+          }
+        ]
+      }
+    },
+    "InstanceProfile":{
+      "Type":"AWS::IAM::InstanceProfile",
+      "Properties":{
+        "Path":"/",
+        "Roles":[ { "Ref":"Role" } ]
+      }
+    },
+    "LaunchConfig" : {
+       "Type" : "AWS::AutoScaling::LaunchConfiguration",
+       "Properties" : {
+         "ImageId" : { "Ref" :"BaseAMI"},
+         "IamInstanceProfile":{"Ref":"InstanceProfile"},
+         "KeyName" : { "Ref" :"KeyName"},
+         "SecurityGroups" : [
+           { "Ref":"SecurityGroupBackplane" },
+           { "Ref":"SecurityGroupInternalApp" }
+         ],
+         "BlockDeviceMappings" : [
+           {
+              "DeviceName" : "/dev/xvda",
+              "Ebs" : {
+                "VolumeSize" : "30",
+                "DeleteOnTermination" : "true",
+                "VolumeType" : "gp2"
+              }
+           },
+           {
+              "DeviceName" : "/dev/xvdb",
+              "Ebs" : {
+                "VolumeSize" : "30",
+                "DeleteOnTermination" : "true",
+                "VolumeType" : "gp2"
+              }
+           }
+         ],
+         "InstanceType" : {"Ref" : "InstanceType"},
+         "UserData": {
+           "Fn::Base64": {
+             "Fn::Join": [
+               "",
+               [
+                 "#!/bin/bash\n",
+                 "hostname app-`/opt/aws/bin/ec2-metadata  -i | awk '{print $NF}'`.int.", { "Ref":"EnvironmentName" } ,".", {"Ref":"DNSDomain"},"\n",
+                 "sed '/HOSTNAME/d' /etc/sysconfig/network > /tmp/network && mv -f /tmp/network /etc/sysconfig/network && echo \"HOSTNAME=app-`/opt/aws/bin/ec2-metadata --instance-id|/usr/bin/awk '{print $2}'`.int.",{ "Ref":"EnvironmentName" } ,".", {"Ref":"DNSDomain"},"\" >>/etc/sysconfig/network && /etc/init.d/network restart\n",
+                 "/usr/bin/aws s3 --region ", { "Ref" : "AWS::Region" } ," cp s3://", { "Ref" : "SourceBucket" }, "/chef/client.rb /etc/chef/client.rb || error_exit \"Failed to download chef client config\"\n",
+                 "/usr/bin/aws s3 --region ", { "Ref" : "AWS::Region" } ," cp s3://", { "Ref" : "SourceBucket" }, "/chef/", { "Ref" : "EnvironmentType" }, "-validator.pem /etc/chef/", { "Ref" : "EnvironmentType" } ,"-validator.pem || error_exit \"Failed to download chef client validation file\"\n",
+                 "curl -L https://www.chef.io/chef/install.sh | bash\n",
+                 "chef-client -E ", { "Ref" : "EnvironmentType"} , " -o 'recipe[uss::app_default]' -L /tmp/chef.out\n"
+               ]
+             ]
+           }
+         }
+       }
+    },
+   "AutoScalingGroup" : {
+     "Type" : "AWS::AutoScaling::AutoScalingGroup",
+     "Properties" : {
+       "AvailabilityZones" : [
+         { "Fn::Select" : [ 0, { "Fn::GetAZs" : { "Ref" : "AWS::Region" } } ] },
+         { "Fn::Select" : [ 1, { "Fn::GetAZs" : { "Ref" : "AWS::Region" } } ] }
+       ],
+       "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+       "HealthCheckType" : "EC2",
+       "HealthCheckGracePeriod": 500,
+       "MinSize" : 1,
+       "MaxSize" : 30,
+       "LoadBalancerNames" : [{ "Ref":"ElasticLoadBalancer" }],
+       "Tags": [
+         {"Key": "Name","Value": {"Fn::Join": ["", ["appxx-", {"Ref":"EnvironmentName"},""]]}, "PropagateAtLaunch" : true},
+         {"Key": "Project","Value": {"Fn::Join": ["", [{"Ref":"EnvironmentName"}, "-", {"Ref":"EnvironmentType"}, ""]]}, "PropagateAtLaunch" : true}
+       ],
+       "VPCZoneIdentifier" : [{"Ref" : "SubnetPrivateA"}, {"Ref" : "SubnetPrivateB"}]
+     }
+   },
+   "ElasticLoadBalancer" : {
+     "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+     "Properties" : {
+       "Listeners" : [
+          {"LoadBalancerPort" : "80", "InstancePort" : "8080", "Protocol" : "HTTP"},
+          {"LoadBalancerPort" : "443", "InstancePort" : "8080", "Protocol" : "TCP" }
+       ],
+       "HealthCheck" : {
+         "Target" : {"Fn::Join" : ["", [ "HTTP:8080/"  ]]},
+         "HealthyThreshold" : "3",
+         "UnhealthyThreshold" : "2",
+         "Interval" : "15",
+         "Timeout" : "5"
+       },
+       "CrossZone" : true,
+       "SecurityGroups" : [{"Ref" : "SecurityGroupExternalWeb"}],
+       "Subnets" : [
+         {"Ref" : "SubnetPublicA"}
+        ,{"Ref" : "SubnetPublicB"}
+       ],
+       "Tags": [
+         {"Key": "Project","Value": {"Fn::Join": ["", [{"Ref":"EnvironmentName"}, "-", {"Ref":"EnvironmentType"}, ""]]}},
+         {"Key": "Tags","Value":  {"Fn::Join": ["", [ "uss-", {"Ref":"EnvironmentName"},"-elb"]]}}
+       ]
+     }
+   },
+   "ExternalRecordSet":{
+     "Type":"AWS::Route53::RecordSet",
+     "Properties":{
+       "HostedZoneName":{ "Fn::Join":[ "", [ {"Ref": "EnvironmentName"},".",{ "Ref":"DNSDomain" }, "." ] ] },
+       "Comment":" External ELB Record",
+       "Name":{ "Fn::Join":[ "", [ "www.", { "Ref":"EnvironmentName" }, ".", { "Ref":"DNSDomain" }, "." ] ] },
+       "Type":"CNAME",
+       "TTL":"60",
+       "ResourceRecords":[ { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName"] } ]
+     }
+   }
+
+
+  },
+  "Outputs": {
+  }
+}
