@@ -125,7 +125,7 @@
             "Properties": {
                 "TemplateURL": {
                     "Fn::Join": [
-                        "", [ "https://s3-", { "Ref": "AWS::Region"}, ".amazonaws.com/", {"Ref": "SourceBucket"}, "/cloudformation/vpc.json" ]
+                        "", ["https://s3-", {"Ref": "AWS::Region"}, ".amazonaws.com/", {"Ref": "SourceBucket"}, "/cloudformation/vpc.json"]
                     ]
                 },
                 "TimeoutInMinutes": "5",
@@ -179,7 +179,7 @@
                         "Ref": "ChefServer"
                     },
                     "BaseAMI": {
-                        "Fn::FindInMap": ["BaseAMI", {"Ref": "AWS::Region"}, "AMI" ]
+                        "Fn::FindInMap": ["BaseAMI", {"Ref": "AWS::Region"}, "AMI"]
                     },
                     "ToolsVPC": "tmp",
                     "InstanceType": {
@@ -194,7 +194,6 @@
                 }
             }
         },
-
         "DatabaseStack": {
             "Type": "AWS::CloudFormation::Stack",
             "DependsOn": [
@@ -203,7 +202,7 @@
             "Properties": {
                 "TemplateURL": {
                     "Fn::Join": [
-                        "",[ "https://s3-",{ "Ref": "AWS::Region" },".amazonaws.com/", {"Ref": "SourceBucket" }, "/cloudformation/database.json" ]
+                        "", ["https://s3-", {"Ref": "AWS::Region"}, ".amazonaws.com/", {"Ref": "SourceBucket"}, "/cloudformation/database.json"]
                     ]
                 },
                 "TimeoutInMinutes": "20",
@@ -283,8 +282,6 @@
                 }
             }
         },
-
-
         "ApplicationStack": {
             "Type": "AWS::CloudFormation::Stack",
             "DependsOn": [
@@ -294,7 +291,7 @@
             "Properties": {
                 "TemplateURL": {
                     "Fn::Join": [
-                        "",["https://s3-",{"Ref": "AWS::Region"},".amazonaws.com/",{ "Ref": "SourceBucket"},"/cloudformation/application.json" ]
+                        "", ["https://s3-", {"Ref": "AWS::Region"}, ".amazonaws.com/", {"Ref": "SourceBucket"}, "/cloudformation/application.json"]
                     ]
                 },
                 "TimeoutInMinutes": "20",
@@ -402,12 +399,6 @@
             }
         }
     },
-
-
-
-
-
-
     "Outputs": {
         "VPC": {
             "Description": "VPC ID of the newly created VPC",
