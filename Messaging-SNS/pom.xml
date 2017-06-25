@@ -14,6 +14,7 @@
         <java-ver>1.8</java-ver>
         <junit-ver>4.11</junit-ver>
         <slf4j-ver>1.7.10</slf4j-ver>
+        <aws-sdk-ver>1.11.155</aws-sdk-ver>
     </properties>
 
     <dependencies>
@@ -52,7 +53,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk</artifactId>
-            <version>1.10.73</version>
+            <version>${aws-sdk-ver}</version>
         </dependency>
     </dependencies>
 
