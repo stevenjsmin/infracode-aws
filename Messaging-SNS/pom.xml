@@ -50,9 +50,18 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <version>1.9</version>
         </dependency>
+
+<!--
+
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk</artifactId>
+            <version>${aws-sdk-ver}</version>
+        </dependency>
+-->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sns</artifactId>
             <version>${aws-sdk-ver}</version>
         </dependency>
     </dependencies>
