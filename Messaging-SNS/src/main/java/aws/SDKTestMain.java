@@ -1,6 +1,6 @@
 package aws;
 
-import aws.message.sns.SetDefaultSMSConfigure;
+import aws.message.sns.SendSMSMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,9 +12,13 @@ public class SDKTestMain {
 
     public static void main(String[] args) {
 
-        logger.info("Set default configuration for SMS of AWS SNS");
-        SetDefaultSMSConfigure configure = new SetDefaultSMSConfigure();
-        configure.setDefaultSmsAttributes();
+//        logger.info("Set default configuration for SMS of AWS SNS");
+//        SetDefaultSMSConfigure configure = new SetDefaultSMSConfigure();
+//        configure.setDefaultSmsAttributes();
+
+        logger.info("Send test Message");
+        SendSMSMessage smsClient = new SendSMSMessage();
+        smsClient.sendMessage("Test 메시지 입니다", "0422632338");
 
 
     }
