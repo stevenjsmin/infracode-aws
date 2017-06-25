@@ -11,7 +11,7 @@ import java.util.Map;
  * <p>
  * Created by Steven on 25/6/17.
  */
-public class SendSMSMain {
+public class SetDefaultSMSConfigureMain {
     public static void main(String[] args) {
         AmazonSNSClient snsClient = new AmazonSNSClient();
         setDefaultSmsAttributes(snsClient);
